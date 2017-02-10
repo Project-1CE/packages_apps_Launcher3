@@ -15,6 +15,8 @@
  */
 package com.android.launcher3.touch;
 
+import static android.provider.Settings.Secure.DOUBLE_TAP_SLEEP_GESTURE;
+
 import static android.view.MotionEvent.ACTION_CANCEL;
 import static android.view.MotionEvent.ACTION_DOWN;
 import static android.view.MotionEvent.ACTION_MOVE;
@@ -26,8 +28,12 @@ import static com.android.launcher3.LauncherState.NORMAL;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_ALLAPPS_CLOSE_TAP_OUTSIDE;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_WORKSPACE_LONGPRESS;
 
+import android.content.ContentResolver;
+import android.content.Context;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.view.GestureDetector;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -71,7 +77,11 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
 
     private int mLongPressState = STATE_CANCELLED;
 
+    private final PowerManager mPm;
+
     private final GestureDetector mGestureDetector;
+
+    private final ContentResolver mContentResolver;
 
     public WorkspaceTouchListener(Launcher launcher, Workspace<?> workspace) {
         mLauncher = launcher;
@@ -79,7 +89,9 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
         // Use twice the touch slop as we are looking for long press which is more
         // likely to cause movement.
         mTouchSlop = 2 * ViewConfiguration.get(launcher).getScaledTouchSlop();
+        mPm = (PowerManager) workspace.getContext().getSystemService(Context.POWER_SERVICE);
         mGestureDetector = new GestureDetector(workspace.getContext(), this);
+        mContentResolver = workspace.getContext().getContentResolver();
     }
 
     @Override
@@ -209,5 +221,12 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
                 cancelLongPress();
             }
         }
+    }
+
+    @Override
+    public boolean onDoubleTap(MotionEvent event) {
+        if (Settings.Secure.getInt(mContentResolver, DOUBLE_TAP_SLEEP_GESTURE, 0) == 1)
+            mPm.goToSleep(event.getEventTime());
+        return true;
     }
 }
