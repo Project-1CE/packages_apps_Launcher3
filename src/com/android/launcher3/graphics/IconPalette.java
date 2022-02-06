@@ -149,12 +149,7 @@ public class IconPalette {
     }
 
     private static double calculateContrast(int fg, int bg) {
-        bg = setAlphaComponent(bg, 255);
-        return ColorUtils.calculateContrast(fg, bg);
-    }
-
-    private static int setAlphaComponent(int color, int alpha) {
-        return (color & 0x00ffffff) | (alpha << 24);
+        return ColorUtils.calculateContrast(fg, ColorUtils.setAlphaComponent(bg, 255));
     }
 
     public static int getMutedColor(int color, float whiteScrimAlpha) {
