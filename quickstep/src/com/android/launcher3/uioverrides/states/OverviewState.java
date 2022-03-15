@@ -113,7 +113,7 @@ public class OverviewState extends LauncherState {
 
     @Override
     public int getVisibleElements(Launcher launcher) {
-        int elements = CLEAR_ALL_BUTTON | OVERVIEW_ACTIONS | ADD_DESK_BUTTON;
+        int elements = OVERVIEW_ACTIONS | ADD_DESK_BUTTON;
         DeviceProfile dp = launcher.getDeviceProfile();
         boolean showFloatingSearch;
         if (dp.isPhone) {
@@ -127,7 +127,7 @@ public class OverviewState extends LauncherState {
             elements |= FLOATING_SEARCH_BAR;
         }
         if (launcher.isSplitSelectionActive()) {
-            elements &= ~CLEAR_ALL_BUTTON & ~ADD_DESK_BUTTON;
+            elements &= ~ADD_DESK_BUTTON;
         }
         return elements;
     }
