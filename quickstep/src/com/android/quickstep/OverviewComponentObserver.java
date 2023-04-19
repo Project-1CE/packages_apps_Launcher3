@@ -20,11 +20,11 @@ import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.ACTION_PACKAGE_CHANGED;
 import static android.content.Intent.ACTION_PACKAGE_REMOVED;
 
-import static com.android.launcher3.Utilities.createHomeIntent;
 import static com.android.launcher3.config.FeatureFlags.SEPARATE_RECENTS_ACTIVITY;
 import static com.android.launcher3.util.PackageManagerHelper.getPackageFilter;
 import static com.android.systemui.shared.system.PackageManagerWrapper.ACTION_PREFERRED_ACTIVITY_CHANGED;
 
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -33,7 +33,12 @@ import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Bundle;
+import android.util.Log;
 import android.util.SparseIntArray;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.android.launcher3.tracing.OverviewComponentObserverProto;
 import com.android.launcher3.tracing.TouchInteractionServiceProto;
@@ -50,6 +55,8 @@ import java.util.function.Consumer;
  * and provide callers the relevant classes.
  */
 public final class OverviewComponentObserver {
+    private static final String TAG = "OverviewComponentObserver";
+
     private final BroadcastReceiver mUserPreferenceChangeReceiver =
             new SimpleBroadcastReceiver(this::updateOverviewTargets);
     private final BroadcastReceiver mOtherHomeAppUpdateReceiver =
@@ -111,11 +118,6 @@ public final class OverviewComponentObserver {
         if (mDeviceState.isHomeDisabled() != mIsHomeDisabled) {
             updateOverviewTargets();
         }
-
-        // Notify ALL_APPS touch controller when one handed mode state activated or deactivated
-        if (mDeviceState.isOneHandedModeEnabled()) {
-            mActivityInterface.onOneHandedModeStateChanged(mDeviceState.isOneHandedModeActive());
-        }
     }
 
     private void updateOverviewTargets(Intent unused) {
@@ -147,7 +149,12 @@ public final class OverviewComponentObserver {
             }
         }
 
-        if (!mDeviceState.isHomeDisabled() && (defaultHome == null || mIsDefaultHome)) {
+        // TODO(b/258022658): Remove temporary logging.
+        Log.i(TAG, "updateOverviewTargets: mIsHomeDisabled=" + mIsHomeDisabled
+                + ", isDefaultHomeNull=" + (defaultHome == null)
+                + ", mIsDefaultHome=" + mIsDefaultHome);
+
+        if (!mIsHomeDisabled && (defaultHome == null || mIsDefaultHome)) {
             // User default home is same as out home app. Use Overview integrated in Launcher.
             mActivityInterface = LauncherActivityInterface.INSTANCE;
             mIsHomeAndOverviewSame = true;
@@ -275,5 +282,35 @@ public final class OverviewComponentObserver {
         overviewComponentObserver.setOverviewActivityStarted(mActivityInterface.isStarted());
         overviewComponentObserver.setOverviewActivityResumed(mActivityInterface.isResumed());
         serviceProto.setOverviewComponentObvserver(overviewComponentObserver);
+    }
+
+    /**
+     * Starts the intent for the current home activity.
+     */
+    public static void startHomeIntentSafely(@NonNull Context context, @Nullable Bundle options) {
+        RecentsAnimationDeviceState deviceState = new RecentsAnimationDeviceState(context);
+        OverviewComponentObserver observer = new OverviewComponentObserver(context, deviceState);
+        Intent intent = observer.getHomeIntent();
+        observer.onDestroy();
+        deviceState.destroy();
+        startHomeIntentSafely(context, intent, options);
+    }
+
+    /**
+     * Starts the intent for the current home activity.
+     */
+    public static void startHomeIntentSafely(
+            @NonNull Context context, @NonNull Intent homeIntent, @Nullable Bundle options) {
+        try {
+            context.startActivity(homeIntent, options);
+        } catch (NullPointerException | ActivityNotFoundException | SecurityException e) {
+            context.startActivity(createHomeIntent(), options);
+        }
+    }
+
+    private static Intent createHomeIntent() {
+        return new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_HOME)
+                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     }
 }
