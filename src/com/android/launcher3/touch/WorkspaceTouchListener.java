@@ -225,7 +225,7 @@ public class WorkspaceTouchListener extends GestureDetector.SimpleOnGestureListe
 
     @Override
     public boolean onDoubleTap(MotionEvent event) {
-        if (Settings.Secure.getInt(mContentResolver, DOUBLE_TAP_SLEEP_GESTURE, 0) == 1)
+        if (Settings.System.getInt(mContentResolver, DOUBLE_TAP_SLEEP_GESTURE, 0) == 1)
             mPm.goToSleep(event.getEventTime());
         return true;
     }
